@@ -1,10 +1,3 @@
-
-local _AUTH = _G._DAEMON_AUTH
-if type(_AUTH) ~= "table" or type(_AUTH.key) ~= "string" or _AUTH.key == "" then
-    warn("[daemons] unauthorized: please use the loader.")
-    return
-end
-
 if _G.servent then
     warn("[daemons] already running - blocked duplicate execution.")
     return 
@@ -25,9 +18,6 @@ local Debris = cloneref(game:GetService("Debris"))
 local Stats = cloneref(game:GetService("Stats"))
 local LocalPlayer = Players.LocalPlayer
 
--- ========================================
--- CONFIG (persisted to disk)
--- ========================================
 _G.config = {
     auto_parry = nil, accuracy = nil, auto_adaptive = nil, adaptive_mode = nil, random_target = nil, curve_method = '', random_curve = nil,
     random_curve_type = nil, curve_keybind = nil, curve_notify = nil, auto_spam = nil, spam_threshold = nil, manual_spam = nil,
@@ -6539,19 +6529,4 @@ task.spawn(function()
     getgenv()._initialSyncDone = true
 end)
 
-task.spawn(function()
-    while _G._DAEMON_AUTH do
-        task.wait(5)
-        if _G._DAEMON_AUTH ~= _AUTH then
-            warn("[daemon] auth revoked or expired! Kicking player...")
-            
-            pcall(function()
-                game:GetService("Players").LocalPlayer:Kick("[daemons.wtf] Session expired or invalid. Please re-run the loader.")
-            end)
-            
-            break
-        end
-    end
-end)
-
-UI:Notify("daemon.wtf", "YO WTFF THE SCRIPT LOADED NIGGA", "success")
+UI:Notify("daemon.wtf", "YO WTFF THE SCRIPT LOADED", "success")

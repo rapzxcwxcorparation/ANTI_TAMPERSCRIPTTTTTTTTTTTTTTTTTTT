@@ -112,6 +112,7 @@ local UI = Library({
     AutoTheme           = false,
 })
 
+UI:SetPerformanceTier("Potato")
 -- ========================================
 -- STANDALONE TABS (FLAT, NO CATEGORIES)
 -- ========================================

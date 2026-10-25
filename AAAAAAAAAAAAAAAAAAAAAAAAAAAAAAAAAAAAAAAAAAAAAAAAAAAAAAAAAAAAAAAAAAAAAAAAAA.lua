@@ -1,3 +1,15 @@
+--[[
+                        _               _              
+  _ __ __ _ _ __  _ __ | |_ ___ _______| |_ _   _  ___ 
+ | '__/ _` | '_ \| '_ \| __/ _ \_  / _ \ __| | | |/ _ \
+ | | | (_| | |_) | |_) | ||  __// /  __/ |_| |_| |  __/
+ |_|  \__,_| .__/| .__/ \__\___/___\___|\__|_, |\___|
+           |_|   |_|                        |___/      
+
+		   discord.gg/rapptezete
+
+]]
+
 if _G.servent then
     warn("[daemons] already running - blocked duplicate execution.")
     return 
@@ -18,6 +30,9 @@ local Debris = cloneref(game:GetService("Debris"))
 local Stats = cloneref(game:GetService("Stats"))
 local LocalPlayer = Players.LocalPlayer
 
+-- ========================================
+-- CONFIG (persisted to disk)
+-- ========================================
 _G.config = {
     auto_parry = nil, accuracy = nil, auto_adaptive = nil, adaptive_mode = nil, random_target = nil, curve_method = '', random_curve = nil,
     random_curve_type = nil, curve_keybind = nil, curve_notify = nil, auto_spam = nil, spam_threshold = nil, manual_spam = nil,
@@ -29,6 +44,7 @@ _G.config = {
     d_AdvTornadoDetection = nil, d_AdvHellHookDetection = nil, d_AdvWiringToggle = nil, fflag_profile = nil, fflag_json = nil, fflag_auto_load = nil,
     avatar_changer = nil, avatar_name = '', headless_enabled = nil, korblox_enabled = nil, no_render = nil, force_mat = nil, force_mat_type = nil,
     anti_cooldown = nil, triggerbot_notify = nil, thunder_dash_no_cooldown = nil, ping_fix = nil, move_compensation = nil,
+    gravity_enabled = nil, gravity_value = nil, speed_jump_enabled = nil, walkspeed_value = nil, jumppower_value = nil,
     grief_enabled = nil, grief_mode = nil, grief_chance = nil, grief_prox_range = nil, grief_ball_range = nil, auto_pre_click = nil,
 }
 
@@ -105,16 +121,15 @@ local UI = Library({
     ReducedMotion       = false,
     LayoutDensity       = "Normal",
     SectionTransparency = 0.15,
-    NotificationPosition = "TopRight",
+    NotificationPosition = "BottomLeft",
     Tooltip             = true,
     TooltipTransparency = 0.15,
     ThemeAutoLoad       = false,
     AutoTheme           = false,
 })
 
-UI:SetPerformanceTier("Potato")
 -- ========================================
--- STANDALONE TABS (FLAT, NO CATEGORIES)
+-- STANDALONE TABS
 -- ========================================
 UI:CreateStandaloneTab("Dashboard", "house")
 UI:CreateStandaloneTab("Main", "shield")
@@ -498,7 +513,8 @@ UI:AddToggle(sSpoofR, "Winstreak Spoofer", isTrue(_G.config.winstreak_spoofer), 
     if getgenv().OnWinstreakSpooferToggle then pcall(getgenv().OnWinstreakSpooferToggle, v) end
 end)
 UI:AddTextbox(sSpoofR, "Winstreak Value", tostring(_G.config.v_WinstreakValue or 100), function(txt)
-    _G.config.v_WinstreakValue = tonumber(txt) or 100
+    local clean = tostring(txt or ""):gsub(",", "")
+    _G.config.v_WinstreakValue = tonumber(clean) or 100
     if getgenv().OnWinstreakValueChange then pcall(getgenv().OnWinstreakValueChange, _G.config.v_WinstreakValue) end
 end)
 UI:AddToggle(sSpoofR, "ELO Spoofer", isTrue(_G.config.elo_spoofer), function(v)
@@ -590,13 +606,32 @@ UI:AddToggle(sUtilL, "Hide Lights", false, function(v) if getgenv().SetHideState
 UI:AddToggle(sUtilL, "Hide All FX", false, function(v) if getgenv().HideAllEffects then getgenv().HideAllEffects(v) end end)
 
 local sUtilR = UI:CreateSection("Utility", "Movement & Camera", "Speed, Jump, FOV", true, "Right", "settings")
-UI:AddToggle(sUtilR, "Speed & Jump", true, function(v) if getgenv().ToggleSpeedJump then getgenv().ToggleSpeedJump(v) end end)
-UI:AddSlider(sUtilR, "WalkSpeed", 16, 400, 44, 0, function(v) getgenv().WalkSpeed = v end)
-UI:AddSlider(sUtilR, "JumpPower", 50, 450, 50, 0, function(v) getgenv().JumpPower = v end)
+UI:AddToggle(sUtilR, "Speed & Jump", _G.config.speed_jump_enabled ~= false, function(v)
+    if getgenv().ToggleSpeedJump then getgenv().ToggleSpeedJump(v) end
+end)
+UI:AddSlider(sUtilR, "WalkSpeed", 16, 400, tonumber(_G.config.walkspeed_value) or 44, 0, function(v)
+    _G.config.walkspeed_value = v
+    getgenv().WalkSpeed = v
+end)
+UI:AddSlider(sUtilR, "JumpPower", 50, 450, tonumber(_G.config.jumppower_value) or 50, 0, function(v)
+    _G.config.jumppower_value = v
+    getgenv().JumpPower = v
+end)
 UI:AddToggle(sUtilR, "FOV Changer", false, function(v) if getgenv().ToggleFOV then getgenv().ToggleFOV(v) end end)
-UI:AddSlider(sUtilR, "FOV", 40, 120, 120, 0, function(v) getgenv().FOVValue = v end)
-UI:AddToggle(sUtilR, "Gravity", false, function(v) if getgenv().ToggleGravity then getgenv().ToggleGravity(v) end end)
-UI:AddSlider(sUtilR, "Gravity Value", 0, 500, 100, 0, function(v) getgenv().GravityValue = v end)
+UI:AddSlider(sUtilR, "FOV", 40, 120, tonumber(_G.config.fov_value) or 120, 0, function(v)
+    getgenv().FOVValue = v
+    _G.config.fov_value = v
+    if getgenv()._fovEnabled and getgenv().ToggleFOV then
+        getgenv().ToggleFOV(true)
+    end
+end)
+UI:AddToggle(sUtilR, "Gravity", _G.config.gravity_enabled == true, function(v)
+    if getgenv().ToggleGravity then getgenv().ToggleGravity(v) end
+end)
+UI:AddSlider(sUtilR, "Gravity Value", 0, 500, tonumber(_G.config.gravity_value) or 100, 0, function(v)
+    _G.config.gravity_value = v
+    getgenv().GravityValue = v
+end)
 
 local sAva = UI:CreateSection("Utility", "Avatar Changer", "Copy appearances", true, "Left", "user")
 UI:AddToggle(sAva, "Avatar Changer", isTrue(_G.config.avatar_changer), function(v) _G.config.avatar_changer = v; if getgenv()._daemonAvatarChanger then getgenv()._daemonAvatarChanger.set(v, _G.config.avatar_name or "") end end)
@@ -623,6 +658,15 @@ BallHelper.ball = {
 
 local CurrentAnimTrack
 local CurrentTarget
+
+getgenv()._cachedPing = 50
+task.spawn(function()
+    while task.wait(0.5) do
+        pcall(function()
+            getgenv()._cachedPing = Stats.Network.ServerStatsItem["Data Ping"]:GetValue()
+        end)
+    end
+end)
 
 -- ============================================================
 -- [2] REMOTE DETECTION + SIGNAL FALLBACK
@@ -1120,33 +1164,20 @@ end
 
 BallHelper._playParryAnim = _playParryAnim
 
-local parryBallCooldown = setmetatable({}, {__mode = "k"})
+local parryActive = false
 local parryCount = 0
-function BallHelper.parry(bypassDebounce, ball)
+function BallHelper.parry(bypassDebounce)
     local _nowP = tick()
     if not bypassDebounce and _nowP - (getgenv()._lastParryFireAt or 0) < 0.15 then return false end
     getgenv()._lastParryFireAt = _nowP
     pcall(getgenv()._pickRandomCurve)
     pcall(_playParryAnim)
-
-    local overrideTarget = nil
-    if ball then
-        local tName = ball:GetAttribute("target")
-        if tName and tName ~= "" and tName ~= LocalPlayer.Name then
-            local alive = workspace:FindFirstChild("Alive")
-            if alive then overrideTarget = alive:FindFirstChild(tName) end
-        end
-    end
-
-    if not overrideTarget and not _G.config.random_target then select_target_by_mouse() end
-    local effectiveTarget = overrideTarget or CurrentTarget
-
-    local curveCFrame = BallHelper.getCurveCFrame(effectiveTarget)
+    if not _G.config.random_target then select_target_by_mouse() end
+    local curveCFrame = BallHelper.getCurveCFrame()
     if getgenv()._doLegitCameraMove then pcall(getgenv()._doLegitCameraMove, curveCFrame) end
-
     local mouseLoc
-    if effectiveTarget and effectiveTarget.PrimaryPart then
-        local viewportPt = workspace.CurrentCamera:WorldToViewportPoint(effectiveTarget.PrimaryPart.Position)
+    if _G.config.random_target and CurrentTarget and CurrentTarget.PrimaryPart then
+        local viewportPt = workspace.CurrentCamera:WorldToViewportPoint(CurrentTarget.PrimaryPart.Position)
         mouseLoc = { viewportPt.X, viewportPt.Y }
     else
         local mp = UserInputService:GetMouseLocation()
@@ -1164,7 +1195,7 @@ function BallHelper.parry(bypassDebounce, ball)
     if not _signalReady or not _signalObj then return false end
     local ok = pcall(function() _signalObj:Fire(0.5, curveCFrame, screenPositions, mouseLoc, false) end)
     if not ok then return false end
-    if parryCount > 20 then return false end
+    if parryCount > 7 then return false end
     parryCount += 1
     task.delay(0.5, function() if parryCount > 0 then parryCount -= 1 end end)
     return true
@@ -1678,11 +1709,7 @@ task.spawn(function()
                 elseif rate > 0.95 then fb.ftMax = math.max(fb.ftMax - 0.005, 0.18) end
                 fb.ftMin = fb.ftMax - 0.04
                 fb.fires = 0; fb.successes = 0
-                if fb.ftMax ~= oldMax then
-                    pcall(function()
-                        UI:Notify("eta tune", string.format("window: %.0f-%.0fms", fb.ftMin * 1000, fb.ftMax * 1000), "info")
-                    end)
-                end
+                -- Notif dihapus
             end
         end
         if ts and ts.fires >= 10 then
@@ -1703,11 +1730,6 @@ task.spawn(function()
                     ts.marginBase = math.max(ts.marginBase - 0.5, 8)
                 end
                 ts.fires = 0; ts.successes = 0
-                if ts.windowMax ~= oldWin or ts.marginBase ~= oldMargin then
-                    pcall(function()
-                        UI:Notify("tsunami tune", string.format("etaMax: %.2fs | margin: %.0f", ts.windowMax, ts.marginBase), "info")
-                    end)
-                end
             end
         end
     end
@@ -1724,11 +1746,6 @@ task.spawn(function()
             elseif rate < 0.75 then spk.win = math.min(spk.win + 0.01, 0.26)
             elseif rate > 0.85 then spk.win = math.max(spk.win - 0.01, 0.12) end
             spk.fires = 0; spk.successes = 0
-            if spk.win ~= oldWin then
-                pcall(function()
-                    UI:Notify("spike tune", string.format("win: %.0fms", spk.win * 1000), "info")
-                end)
-            end
         end
     end
 end)
@@ -1891,6 +1908,7 @@ end)
 
 workspace.Balls.ChildRemoved:Connect(function(_)
     parryCount = 0
+    parryActive = false
     CurrentTarget = nil
     recentlyPickedTargets = {}
     if Connections.target_change then
@@ -1925,7 +1943,7 @@ end)
 
 -- ============================================================
 -- [12] ABILITY ESP
--- ========================w====================================
+-- ============================================================
 local _ESP = {
     enabled = false, data = {}, icon_cache = {}, cooldowns = {},
     uses = {}, char_conns = {}, heartbeat = nil, player_added = nil,
@@ -3250,8 +3268,8 @@ getgenv().OnAutoParryToggle = function(enabled)
     if enabled then
         Connections.auto_parry = RunService.PreSimulation:Connect(function()
             if _G.triggerbot then return end
-            if _G.singularity_active then parryCount = 0; return end
-            if getgenv()._advParryBlocked and getgenv()._advParryBlocked() then parryCount = 0; return end
+            if _G.singularity_active then parryActive = false; parryCount = 0; return end
+            if getgenv()._advParryBlocked and getgenv()._advParryBlocked() then parryActive = false; parryCount = 0; return end
             if not LocalPlayer.Character or not LocalPlayer.Character.PrimaryPart then return end
             local props = BallHelper.ball.properties
             local realBall = BallHelper.get_ball()
@@ -3261,10 +3279,10 @@ getgenv().OnAutoParryToggle = function(enabled)
                 local zoomies = ball:FindFirstChild("zoomies")
                 if not zoomies then return end
                 ball:GetAttributeChangedSignal("target"):Once(function()
-                    parryBallCooldown[ball] = nil
+                    parryActive = false
                     if _G.config.random_target then pick_random_target() end
                 end)
-                if parryBallCooldown[ball] then continue end
+                if parryActive then return end
                 local ballTarget = ball:GetAttribute("target")
                 local realBallTarget = realBall and realBall:GetAttribute("target")
                 local velocity = zoomies.VectorVelocity
@@ -3398,20 +3416,20 @@ getgenv().OnAutoParryToggle = function(enabled)
                     getgenv()._lastParryPath = _firePath
                     local _fired = BallHelper.parry(true, ball)
                     if _fired then
-                        parryBallCooldown[ball] = true
-                        task.delay(0.35, function()
-                            if ball and ball.Parent then parryBallCooldown[ball] = nil end
-                        end)
-                        if _firePath == "spike" then
-                            _spk.fires = _spk.fires + 1
-                            _spk.lastFireAt = tick()
-                        elseif _firePath == "tsunami" then
-                            _tsfb.fires = _tsfb.fires + 1
-                        elseif getgenv()._etaFeedback then
-                            getgenv()._etaFeedback.fires = getgenv()._etaFeedback.fires + 1
-                        end
+                        parryActive = true
+                    if _firePath == "spike" then
+                        _spk.fires = _spk.fires + 1
+                        _spk.lastFireAt = tick()
+                    elseif _firePath == "tsunami" then
+                        _tsfb.fires = _tsfb.fires + 1
+                    elseif getgenv()._etaFeedback then
+                        getgenv()._etaFeedback.fires = getgenv()._etaFeedback.fires + 1
                     end
                 end
+                local startTime = tick()
+                repeat RunService.PreSimulation:Wait() until (tick() - startTime) >= 0.25 or not parryActive
+                parryActive = false
+            end
             end
         end)
     else
@@ -4451,8 +4469,12 @@ do
         if fovOrig == nil then fovOrig = cam.FieldOfView end
         cam.FieldOfView = v
     end
+    getgenv().FOVValue = tonumber(_G.config.fov_value) or 120
+    getgenv()._fovEnabled = _G.config.fov_enabled ~= false
     getgenv().ToggleFOV = function(state)
         if fovConn then fovConn:Disconnect(); fovConn = nil end
+        getgenv()._fovEnabled = state == true
+        _G.config.fov_enabled = state == true
         if state then
             applyFOV(tonumber(getgenv().FOVValue) or 120)
             fovConn = RunService.RenderStepped:Connect(function() applyFOV(tonumber(getgenv().FOVValue) or 120) end)
@@ -4460,17 +4482,25 @@ do
             if fovOrig then local cam = workspace.CurrentCamera; if cam then cam.FieldOfView = fovOrig end end
         end
     end
-    getgenv().FOVValue = 120
 end
 
 do
-    local sjConn
+    if _G._daemonSJConn then
+        pcall(function() _G._daemonSJConn:Disconnect() end)
+        _G._daemonSJConn = nil
+    end
     getgenv().ToggleSpeedJump = function(state)
-        if sjConn then sjConn:Disconnect(); sjConn = nil end
+        if _G._daemonSJConn then
+            pcall(function() _G._daemonSJConn:Disconnect() end)
+            _G._daemonSJConn = nil
+        end
+        _G.config.speed_jump_enabled = state
         if state then
-            sjConn = RunService.Heartbeat:Connect(function()
-                local c = LocalPlayer.Character; if not c then return end
-                local h = c:FindFirstChildOfClass("Humanoid"); if not h then return end
+            _G._daemonSJConn = RunService.Heartbeat:Connect(function()
+                local c = LocalPlayer.Character
+                if not c then return end
+                local h = c:FindFirstChildOfClass("Humanoid")
+                if not h then return end
                 h.WalkSpeed = tonumber(getgenv().WalkSpeed) or 44
                 h.UseJumpPower = true
                 h.JumpPower = tonumber(getgenv().JumpPower) or 50
@@ -4479,27 +4509,44 @@ do
             local c = LocalPlayer.Character
             if c then
                 local h = c:FindFirstChildOfClass("Humanoid")
-                if h then h.WalkSpeed = 36; h.JumpPower = 50 end
+                if h then h.WalkSpeed = 16; h.JumpPower = 50 end
             end
         end
     end
-    getgenv().WalkSpeed = 44; getgenv().JumpPower = 50
+    getgenv().WalkSpeed = tonumber(_G.config.walkspeed_value) or 44
+    getgenv().JumpPower = tonumber(_G.config.jumppower_value) or 50
 end
 
 do
-    local gravConn
-    local gravOrig = workspace.Gravity
+    if _G._daemonGravConn then
+        pcall(function() _G._daemonGravConn:Disconnect() end)
+        _G._daemonGravConn = nil
+    end
+    if _G._daemonGravOrig == nil then
+        _G._daemonGravOrig = workspace.Gravity
+    end
     local function setGrav(on, val)
-        if gravConn then gravConn:Disconnect(); gravConn = nil end
+        if _G._daemonGravConn then
+            pcall(function() _G._daemonGravConn:Disconnect() end)
+            _G._daemonGravConn = nil
+        end
         if on then
             local t = tonumber(val) or 100
-            gravConn = RunService.Heartbeat:Connect(function() workspace.Gravity = t end)
-        else workspace.Gravity = gravOrig end
+            _G._daemonGravConn = RunService.Heartbeat:Connect(function()
+                workspace.Gravity = t
+            end)
+        else
+            workspace.Gravity = _G._daemonGravOrig
+        end
     end
-    getgenv().GravityValue = 100
+    getgenv().GravityValue = tonumber(_G.config.gravity_value) or 100
     getgenv().ToggleGravity = function(v)
         getgenv().GravityEnabled = v
+        _G.config.gravity_enabled = v
         setGrav(v, getgenv().GravityValue or 100)
+    end
+    if _G.config.gravity_enabled == true then
+        setGrav(true, getgenv().GravityValue)
     end
 end
 
@@ -5235,6 +5282,7 @@ do
         return cg
     end
 
+
     local function createFloatingButton(config)
         local name = config.name
         local labelText = config.label
@@ -5255,9 +5303,7 @@ do
         local okSetParent = pcall(function() screenGui.Parent = parent end)
         if not okSetParent or not screenGui.Parent then
             local lp = game:GetService("Players").LocalPlayer
-            if lp then
-                pcall(function() screenGui.Parent = lp:WaitForChild("PlayerGui", 5) end)
-            end
+            if lp then pcall(function() screenGui.Parent = lp:WaitForChild("PlayerGui", 5) end) end
         end
         if not screenGui.Parent then
             pcall(function() UI:Notify("Floating", "Cannot attach to any GUI parent", "error") end)
@@ -5267,10 +5313,10 @@ do
 
         local button = Instance.new("TextButton")
         button.Name = name
-        button.Size = UDim2.fromOffset(140, 40)
+        button.Size = UDim2.fromOffset(140, 36)
         button.Position = startPosition
         button.AnchorPoint = Vector2.new(1, 0.5)
-        button.BackgroundColor3 = Color3.fromRGB(14, 14, 18)
+        button.BackgroundColor3 = Color3.fromRGB(18, 18, 22)
         button.BackgroundTransparency = 0
         button.BorderSizePixel = 0
         button.AutoButtonColor = false
@@ -5279,52 +5325,44 @@ do
         button.Parent = screenGui
 
         local corner = Instance.new("UICorner")
-        corner.CornerRadius = UDim.new(0, 9)
+        corner.CornerRadius = UDim.new(0, 8)
         corner.Parent = button
 
         local stroke = Instance.new("UIStroke")
-        stroke.Color = Color3.fromRGB(38, 38, 46)
+        stroke.Color = Color3.fromRGB(45, 45, 50)
         stroke.Thickness = 1
-        stroke.Transparency = 0.1
+        stroke.Transparency = 0.2
         stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
         stroke.Parent = button
 
-        local gradient = Instance.new("UIGradient")
-        gradient.Color = ColorSequence.new({
-            ColorSequenceKeypoint.new(0, Color3.fromRGB(22, 22, 28)),
-            ColorSequenceKeypoint.new(1, Color3.fromRGB(12, 12, 16)),
-        })
-        gradient.Rotation = 90
-        gradient.Parent = button
+        local indicator = Instance.new("Frame")
+        indicator.Name = "Indicator"
+        indicator.AnchorPoint = Vector2.new(0, 0.5)
+        indicator.Position = UDim2.new(0, 0, 0.5, 0)
+        indicator.Size = UDim2.fromOffset(3, 16)
+        indicator.BackgroundColor3 = Color3.fromRGB(60, 60, 70)
+        indicator.BorderSizePixel = 0
+        indicator.Parent = button
 
-        local dot = Instance.new("Frame")
-        dot.Name = "Dot"
-        dot.AnchorPoint = Vector2.new(0, 0.5)
-        dot.Position = UDim2.new(0, 14, 0.5, 0)
-        dot.Size = UDim2.fromOffset(6, 6)
-        dot.BackgroundColor3 = Color3.fromRGB(80, 80, 92)
-        dot.BorderSizePixel = 0
-        dot.Parent = button
+        local indCorner = Instance.new("UICorner")
+        indCorner.CornerRadius = UDim.new(1, 0)
+        indCorner.Parent = indicator
 
-        local dotCorner = Instance.new("UICorner")
-        dotCorner.CornerRadius = UDim.new(1, 0)
-        dotCorner.Parent = dot
-
-        local dotGlow = Instance.new("UIStroke")
-        dotGlow.Color = Color3.fromRGB(80, 80, 92)
-        dotGlow.Thickness = 2
-        dotGlow.Transparency = 1
-        dotGlow.Parent = dot
+        local indGlow = Instance.new("UIStroke")
+        indGlow.Color = Color3.fromRGB(60, 60, 70)
+        indGlow.Thickness = 1.5
+        indGlow.Transparency = 1
+        indGlow.Parent = indicator
 
         local label = Instance.new("TextLabel")
         label.Name = "Label"
         label.BackgroundTransparency = 1
-        label.Position = UDim.new(0, 30, 0, 0)
-        label.Size = UDim2.new(1, -40, 1, 0)
+        label.Position = UDim2.new(0, 14, 0, 0)
+        label.Size = UDim2.new(1, -20, 1, 0)
         label.Font = Enum.Font.GothamMedium
-        label.TextSize = 13
+        label.TextSize = 12
         label.Text = labelText
-        label.TextColor3 = Color3.fromRGB(125, 125, 138)
+        label.TextColor3 = Color3.fromRGB(180, 180, 190)
         label.TextXAlignment = Enum.TextXAlignment.Left
         label.Parent = button
 
@@ -5334,78 +5372,60 @@ do
         local hasMoved = false
 
         local function tween(obj, props, duration)
-            TweenService:Create(
-                obj,
-                TweenInfo.new(duration or 0.16, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
-                props
-            ):Play()
+            TweenService:Create(obj, TweenInfo.new(duration or 0.2, Enum.EasingStyle.Quint, Enum.EasingDirection.Out), props):Play()
         end
 
         local function setActive(active)
             isActive = active
             if active then
-                tween(dot, { BackgroundColor3 = accent }, 0.18)
-                tween(dotGlow, { Color = accent, Transparency = 0.55 }, 0.18)
-                tween(label, { TextColor3 = Color3.fromRGB(232, 232, 238) }, 0.18)
-                tween(stroke, { Color = accent, Transparency = 0.7 }, 0.18)
+                tween(indicator, { BackgroundColor3 = accent }, 0.2)
+                tween(indGlow, { Color = accent, Transparency = 0.4 }, 0.2)
+                tween(label, { TextColor3 = Color3.fromRGB(255, 255, 255) }, 0.2)
+                tween(stroke, { Color = accent, Transparency = 0.6 }, 0.2)
             else
-                tween(dot, { BackgroundColor3 = Color3.fromRGB(80, 80, 92) }, 0.18)
-                tween(dotGlow, { Color = Color3.fromRGB(80, 80, 92), Transparency = 1 }, 0.18)
-                tween(label, { TextColor3 = Color3.fromRGB(125, 125, 138) }, 0.18)
-                tween(stroke, { Color = Color3.fromRGB(38, 38, 46), Transparency = 0.1 }, 0.18)
+                tween(indicator, { BackgroundColor3 = Color3.fromRGB(60, 60, 70) }, 0.2)
+                tween(indGlow, { Color = Color3.fromRGB(60, 60, 70), Transparency = 1 }, 0.2)
+                tween(label, { TextColor3 = Color3.fromRGB(180, 180, 190) }, 0.2)
+                tween(stroke, { Color = Color3.fromRGB(45, 45, 50), Transparency = 0.2 }, 0.2)
             end
         end
 
         button.MouseEnter:Connect(function()
             if isDragging then return end
-            tween(button, { BackgroundColor3 = Color3.fromRGB(22, 22, 28) }, 0.15)
+            tween(button, { BackgroundColor3 = Color3.fromRGB(24, 24, 28) }, 0.15)
             tween(stroke, { Transparency = 0 }, 0.15)
         end)
 
         button.MouseLeave:Connect(function()
             if isDragging then return end
-            tween(button, { BackgroundColor3 = Color3.fromRGB(14, 14, 18) }, 0.15)
-            tween(stroke, { Transparency = isActive and 0.7 or 0.1 }, 0.15)
+            tween(button, { BackgroundColor3 = Color3.fromRGB(18, 18, 22) }, 0.15)
+            tween(stroke, { Transparency = isActive and 0.6 or 0.2 }, 0.15)
         end)
 
         button.InputBegan:Connect(function(input)
-            if input.UserInputType ~= Enum.UserInputType.MouseButton1
-                and input.UserInputType ~= Enum.UserInputType.Touch then
-                return
-            end
+            if input.UserInputType ~= Enum.UserInputType.MouseButton1 and input.UserInputType ~= Enum.UserInputType.Touch then return end
             isDragging = true
             hasMoved = false
             dragStartPos = input.Position
             buttonStartPos = button.Position
-            tween(button, { BackgroundColor3 = Color3.fromRGB(24, 24, 30) }, 0.1)
+            tween(button, { BackgroundColor3 = Color3.fromRGB(28, 28, 32) }, 0.1)
         end)
 
         UserInputService.InputChanged:Connect(function(input)
             if not isDragging or not screenGui.Parent then return end
-            if input.UserInputType ~= Enum.UserInputType.MouseMovement
-                and input.UserInputType ~= Enum.UserInputType.Touch then
-                return
-            end
+            if input.UserInputType ~= Enum.UserInputType.MouseMovement and input.UserInputType ~= Enum.UserInputType.Touch then return end
             local delta = input.Position - dragStartPos
             if not hasMoved and (math.abs(delta.X) > 3 or math.abs(delta.Y) > 3) then
                 hasMoved = true
             end
-            button.Position = UDim2.new(
-                buttonStartPos.X.Scale,
-                buttonStartPos.X.Offset + delta.X,
-                buttonStartPos.Y.Scale,
-                buttonStartPos.Y.Offset + delta.Y
-            )
+            button.Position = UDim2.new(buttonStartPos.X.Scale, buttonStartPos.X.Offset + delta.X, buttonStartPos.Y.Scale, buttonStartPos.Y.Offset + delta.Y)
         end)
 
         UserInputService.InputEnded:Connect(function(input)
             if not isDragging or not screenGui.Parent then return end
-            if input.UserInputType ~= Enum.UserInputType.MouseButton1
-                and input.UserInputType ~= Enum.UserInputType.Touch then
-                return
-            end
+            if input.UserInputType ~= Enum.UserInputType.MouseButton1 and input.UserInputType ~= Enum.UserInputType.Touch then return end
             isDragging = false
-            tween(button, { BackgroundColor3 = Color3.fromRGB(14, 14, 18) }, 0.12)
+            tween(button, { BackgroundColor3 = Color3.fromRGB(18, 18, 22) }, 0.12)
             if not hasMoved then
                 setActive(not isActive)
                 pcall(onStateChanged, isActive)
@@ -6277,97 +6297,189 @@ end
 -- [38.16] WINSTREAK SPOOFER
 -- ============================================================
 do
-    local _winBucket = {}
-    local _winConn = nil
-    local _winAddConn = nil
-    local _winRescanAt = 0
+    local WinStreak = {
+        enabled = false,
+        streak = tostring(tonumber(_G.config.v_WinstreakValue) or 100),
+        conn = nil,
+        enabled_conn = nil,
+        char_conn = nil,
+        original_enabled = nil,
+        original_text = "",
+        original_icon = "",
+    }
 
-    local function _winApplyValue(obj)
-        local val = tostring(tonumber(_G.config.v_WinstreakValue) or 100)
-        if _winBucket[obj] == nil then _winBucket[obj] = obj.Text end
-        obj.Text = val
+    local HIGH_ICON = "rbxassetid://75598166115655"
+    local NORMAL_ICON = "rbxassetid://89658127170771"
+
+    local function formatStreak(str)
+        local s = tostring(str or "")
+        local clean = s:gsub(",", "")
+        local n = tonumber(clean)
+        if not n then return s end
+        return tostring(math.floor(n)):reverse():gsub("(%d%d%d)", "%1,"):reverse():gsub("^,", "")
     end
 
-    local function _winCheckWidget(obj)
-        if not (obj:IsA("TextLabel") or obj:IsA("TextButton") or obj:IsA("TextBox")) then return end
-        local n = (obj.Name .. " " .. obj.Text):lower()
-        if n:find("winstreak", 1, true) or n:find("win streak", 1, true) then
-            _winApplyValue(obj)
+    local function getDisplay()
+        local char = LocalPlayer.Character
+        if not char then return nil end
+        local display = char:FindFirstChild("WinStreakDisplay")
+        if not display then
+            display = char:WaitForChild("WinStreakDisplay", 5)
+        end
+        return display
+    end
+
+    local function _backup(display)
+        local main = display:FindFirstChild("Main")
+        if not main then return end
+        local icon = main:FindFirstChild("Icon")
+        local value = main:FindFirstChild("Value")
+        if not icon or not value then return end
+
+        if WinStreak.original_enabled == nil then
+            WinStreak.original_enabled = display.Enabled
+        end
+        if WinStreak.original_text == "" then
+            WinStreak.original_text = value.Text
+        end
+        if WinStreak.original_icon == "" then
+            WinStreak.original_icon = icon.Image
         end
     end
 
-    local function _winFullScan()
-        local function _scan(c)
-            if not c then return end
-            for _, obj in ipairs(c:GetDescendants()) do
-                if obj:IsA("TextLabel") or obj:IsA("TextButton") or obj:IsA("TextBox") then
-                    _winCheckWidget(obj)
+    local function restore()
+        if WinStreak.conn then pcall(function() WinStreak.conn:Disconnect() end); WinStreak.conn = nil end
+        if WinStreak.enabled_conn then pcall(function() WinStreak.enabled_conn:Disconnect() end); WinStreak.enabled_conn = nil end
+        local display = getDisplay()
+        if display then
+            if WinStreak.original_enabled ~= nil then
+                pcall(function() display.Enabled = WinStreak.original_enabled end)
+            end
+            local main = display:FindFirstChild("Main")
+            if main then
+                local icon = main:FindFirstChild("Icon")
+                local value = main:FindFirstChild("Value")
+                if value and WinStreak.original_text ~= "" then
+                    pcall(function() value.Text = WinStreak.original_text end)
+                end
+                if icon and WinStreak.original_icon ~= "" then
+                    pcall(function() icon.Image = WinStreak.original_icon end)
                 end
             end
         end
-        _scan(LocalPlayer:FindFirstChild("PlayerGui"))
-        _scan(workspace)
+        WinStreak.original_enabled = nil
+        WinStreak.original_text = ""
+        WinStreak.original_icon = ""
     end
 
-    local function _winRefreshCached()
-        local val = tostring(tonumber(_G.config.v_WinstreakValue) or 100)
-        for obj in pairs(_winBucket) do
-            if obj and obj.Parent then
-                pcall(function() obj.Text = val end)
-            else
-                _winBucket[obj] = nil
-            end
+    local function winStreakUpdate()
+        if not WinStreak.enabled then
+            if WinStreak.conn then pcall(function() WinStreak.conn:Disconnect() end); WinStreak.conn = nil end
+            if WinStreak.enabled_conn then pcall(function() WinStreak.enabled_conn:Disconnect() end); WinStreak.enabled_conn = nil end
+            return
         end
-    end
 
-    local function _winRestore()
-        for obj, text in pairs(_winBucket) do
-            if obj and obj.Parent then pcall(function() obj.Text = text end) end
-        end
-        table.clear(_winBucket)
+        local char = LocalPlayer.Character
+        if not char then return end
+
+        local display = char:FindFirstChild("WinStreakDisplay")
+        if not display then display = char:WaitForChild("WinStreakDisplay", 5) end
+        if not display then return end
+
+        local main = display:FindFirstChild("Main")
+        if not main then return end
+
+        local icon = main:FindFirstChild("Icon")
+        local value = main:FindFirstChild("Value")
+        if not icon or not value then return end
+        value.RichText = true
+
+        _backup(display)
+
+        local streakStr = WinStreak.streak or "100"
+        local streakNum = tonumber(streakStr)
+        local isHigh = streakNum and streakNum >= 10
+
+        local richText = string.format(
+            "<b><stroke color='rgb(0, 0, 0)' thickness='2'>%s</stroke></b>",
+            formatStreak(streakStr)
+        )
+
+        icon.Image = isHigh and HIGH_ICON or NORMAL_ICON
+        value.Text = richText
+        display.Enabled = true
+
+        if WinStreak.conn then pcall(function() WinStreak.conn:Disconnect() end); WinStreak.conn = nil end
+        local applying = false
+        WinStreak.conn = value:GetPropertyChangedSignal("Text"):Connect(function()
+            if applying then return end
+            applying = true
+            local s = WinStreak.streak or "100"
+            local n = tonumber(s)
+            pcall(function()
+                icon.Image = (n and n >= 10) and HIGH_ICON or NORMAL_ICON
+                value.Text = string.format(
+                    "<b><stroke color='rgb(0, 0, 0)' thickness='2'>%s</stroke></b>",
+                    formatStreak(s)
+                )
+            end)
+            applying = false
+        end)
+
+        if WinStreak.enabled_conn then pcall(function() WinStreak.enabled_conn:Disconnect() end); WinStreak.enabled_conn = nil end
+        WinStreak.enabled_conn = display:GetPropertyChangedSignal("Enabled"):Connect(function()
+            if applying then return end
+            applying = true
+            pcall(function() display.Enabled = true end)
+            applying = false
+        end)
     end
 
     getgenv().OnWinstreakSpooferToggle = function(v)
-        if _winConn then _winConn:Disconnect(); _winConn = nil end
-        if _winAddConn then _winAddConn:Disconnect(); _winAddConn = nil end
-        if v then
-            _winFullScan()
-            _winAddConn = workspace.DescendantAdded:Connect(function(obj)
-                if obj:IsA("TextLabel") or obj:IsA("TextButton") or obj:IsA("TextBox") then
-                    task.defer(function() _winCheckWidget(obj) end)
-                end
-            end)
-            _winRescanAt = os.clock()
-            _winConn = RunService.Heartbeat:Connect(function()
-                local now = os.clock()
-                if now - _winRescanAt >= 5 then
-                    _winRescanAt = now
-                    _winRefreshCached()
-                end
-            end)
+        WinStreak.enabled = v == true
+        _G.config.winstreak_spoofer = WinStreak.enabled
+        if WinStreak.enabled then
+            if not WinStreak.char_conn then
+                WinStreak.char_conn = LocalPlayer.CharacterAdded:Connect(function()
+                    task.wait(1)
+                    WinStreak.original_enabled = nil
+                    WinStreak.original_text = ""
+                    WinStreak.original_icon = ""
+                    if WinStreak.enabled then
+                        pcall(winStreakUpdate)
+                    end
+                end)
+            end
+            pcall(winStreakUpdate)
         else
-            _winRestore()
+            restore()
+            if WinStreak.char_conn then
+                pcall(function() WinStreak.char_conn:Disconnect() end)
+                WinStreak.char_conn = nil
+            end
         end
     end
 
     getgenv().OnWinstreakValueChange = function(v)
-        _G.config.v_WinstreakValue = tonumber(v) or 100
-        if _winConn then
-            local val = tostring(_G.config.v_WinstreakValue)
-            for obj in pairs(_winBucket) do
-                if obj and obj.Parent then pcall(function() obj.Text = val end) end
-            end
+        local clean = tostring(v or ""):gsub(",", "")
+        WinStreak.streak = tostring(tonumber(clean) or 100)
+        if WinStreak.enabled then
+            pcall(winStreakUpdate)
         end
+    end
+
+    if _G.config.winstreak_spoofer == true then
+        task.defer(function()
+            if getgenv().OnWinstreakSpooferToggle then
+                pcall(getgenv().OnWinstreakSpooferToggle, true)
+            end
+        end)
     end
 end
 
 -- ============================================================
 -- [39] INITIAL CONFIG → RUNTIME SYNC
 -- ============================================================
--- Problem: toggle di UI keliatan ON (baca _G.config), tapi runtime
--- hook (Connections.auto_parry, _ESP.enabled, dll) gak dipanggil
--- saat init. Hook cuma kepanggil saat user klik toggle manual.
--- Fix: replay semua hook sekali setelah setup selesai.
 task.spawn(function()
     task.wait(2.5)
 
@@ -6468,9 +6580,18 @@ task.spawn(function()
         end
     end
 
-    -- UTILITY: NO RENDER
-    if _G.config.no_render ~= false and getgenv().ToggleNoRender then
-        pcall(getgenv().ToggleNoRender, true)
+    -- UTILITY: SPEED & JUMP
+    if _G.config.speed_jump_enabled ~= false and getgenv().ToggleSpeedJump then
+        pcall(getgenv().ToggleSpeedJump, true)
+    end
+
+    -- UTILITY: FOV
+    if _G.config.fov_enabled ~= false and getgenv().ToggleFOV then
+        pcall(getgenv().ToggleFOV, true)
+    end
+    -- UTILITY: GRAVITY
+    if _G.config.gravity_enabled == true and getgenv().ToggleGravity then
+        pcall(getgenv().ToggleGravity, true)
     end
 
     -- BALL FX
@@ -6530,4 +6651,4 @@ task.spawn(function()
     getgenv()._initialSyncDone = true
 end)
 
-UI:Notify("daemon.wtf", "YO WTFF THE SCRIPT LOADED", "success")
+UI:Notify("daemon.wtf", "YO WTFF", "success")

@@ -92,7 +92,7 @@ end
 
 local UI = Library({
     Title             = "daemon.wtf | Blade Ball",
-    Version           = "",
+    Version           = "beta-hotfix",
     Author            = "@rapptezetzee",
     TitleIcon         = "drama",
     Theme             = "Monochrome",
